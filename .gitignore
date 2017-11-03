@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+#mapas 
+maps/
+data/resultados
