@@ -187,9 +187,16 @@ def mapear(dataset,variable,destino,archivo,titulo):
                  alpha=1,
                  linewidth=0.2,
                  ax=ax,
-                 cmap = 'RdYlGn',
+                 cmap = 'RdYlGn_r',
                  scheme='QUANTILES',
                       legend = True)
     ax.plot([destino[1]],[destino[0]],'bo')
     plt.title(titulo)
     plt.savefig(archivo)
+    
+def guardarData(dataset,nombre):    
+    dataset.descripcion = dataset.descripcion.map(str)
+    dataset.modos = dataset.modos.map(str)
+    dataset.consulta = dataset.consulta.map(str)
+
+    dataset.to_crs(epsg=5345).to_file('../data/resultados/'+str(nombre))
