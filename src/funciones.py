@@ -3,6 +3,7 @@ import numpy as np
 import geopandas as gpd
 import googlemaps
 import os
+import datetime
 import matplotlib.pyplot as plt
 
 
@@ -151,11 +152,18 @@ def descripcionViaje(modo):
     '''
     return [modo[i]['tipo'] for i in range(len(modo))]
 
-def generarDataset(data,destino):
+def generarDataset(data,destino,transit_routing_preference = 'fewer_transfers'):
     cantidadFilas = range(data.shape[0])
-    consultas = [googDirections(origins = (data.iloc[i].Y,data.iloc[i].X),destinations = destino,mode="transit") for i in cantidadFilas]
+    consultas = [googDirections(origins = (data.iloc[i].Y,data.iloc[i].X),
+                                destinations = destino,
+                                mode="transit",
+                               transit_routing_preference = transit_routing_preference) for i in cantidadFilas]
+    
     data['consulta'] = consultas
-
+    data['fechaCorrida'] = str(datetime.datetime.now())
+    data['destino'] = str(destino)
+    data['preferenciasConsulta'] = transit_routing_preference
+    
     data['tramos'] = [cantidadDeTramos(i) for i in data.consulta]
     data['distancia'] = [distancia(i) for i in data.consulta]
     data['costo'] = [costo(i) for i in data.consulta]
@@ -199,4 +207,6 @@ def guardarData(dataset,nombre):
     dataset.modos = dataset.modos.map(str)
     dataset.consulta = dataset.consulta.map(str)
 
-    dataset.to_crs(epsg=5345).to_file('../data/resultados/'+str(nombre))
+    dataset = dataset.to_crs(epsg=5345)
+    dataset.to_file('../data/resultados/'+str(nombre))
+    dataset.to_csv('../data/resultados/'+str(nombre)+'/'+str(nombre)+'.csv')
