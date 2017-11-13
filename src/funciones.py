@@ -5,7 +5,7 @@ import googlemaps
 import os
 import datetime
 import matplotlib.pyplot as plt
-
+from shapely.geometry import Point
 
 
 def googDirections(origins, destinations, transit_routing_preference = False, mode="transit"):
@@ -157,12 +157,11 @@ def descripcionViaje(modo):
 def generarDataset(data,destino,transit_routing_preference=False):
     cantidadFilas = range(data.shape[0])
     #fewer transfers o less walking
-    if transit_routing_preference:
-        print 'con parametro, menos transferencias mas tiempo'
     consultas = [googDirections(origins = (data.iloc[i].Y,data.iloc[i].X),
                                     destinations = destino,
                                     transit_routing_preference = transit_routing_preference,
                                    mode="transit") for i in cantidadFilas]
+
     
     data['consulta'] = consultas
     data['fechaCorrida'] = str(datetime.datetime.now())
@@ -180,6 +179,8 @@ def generarDataset(data,destino,transit_routing_preference=False):
     data['duracionEgreso'] = [egreso(i,'duracion') for i in data.modos]
     data['distanciaEgreso'] = [egreso(i,'distancia') for i in data.modos]
     data['tiempoEnSistema'] = data.tiempoTotal - data.duracionEgreso - data.duracionIngreso
+    
+    
     return data
 
 def mapear(dataset,variable,destino,archivo,titulo):
@@ -206,12 +207,20 @@ def mapear(dataset,variable,destino,archivo,titulo):
     ax.plot([destino[1]],[destino[0]],'bo')
     plt.title(titulo)
     plt.savefig(archivo)
+
     
-def guardarData(dataset,nombre):    
+def generarDistancia(dataset,destino):
+    #proyecto a posgar 2007 banda 3
+    dataset = dataset.to_crs(epsg=5345)
+    dataset['distanciaLineal'] = dataset.geometry.distance(Point(destino))
+    return dataset
+    
+def guardarData(dataset,nombre):
+        
     dataset.descripcion = dataset.descripcion.map(str)
     dataset.modos = dataset.modos.map(str)
     dataset.consulta = dataset.consulta.map(str)
 
-    dataset = dataset.to_crs(epsg=5345)
+    
     dataset.to_file('../data/resultados/'+str(nombre))
     dataset.to_csv('../data/resultados/'+str(nombre)+'/'+str(nombre)+'.csv')
