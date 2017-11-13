@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 
 
 
-def googDirections(origins, destinations, mode="transit",transit_routing_preference = 'fewer_transfers'):
+def googDirections(origins, destinations, transit_routing_preference = False, mode="transit"):
     #docs https://developers.google.com/maps/documentation/directions/intro#DirectionsRequests
     #transit_routing_preference: less_walking o fewer_transfers
     
     gmaps = googlemaps.Client(key=os.getenv('GOOGLEAPIACYA'))
-    travel = gmaps.directions(origins,destinations,mode,alternatives=False,)
+    travel = gmaps.directions(origins,destinations,mode,transit_routing_preference=transit_routing_preference,alternatives=False)
+    
+     
     return travel
 
 
@@ -152,12 +154,15 @@ def descripcionViaje(modo):
     '''
     return [modo[i]['tipo'] for i in range(len(modo))]
 
-def generarDataset(data,destino,transit_routing_preference = 'fewer_transfers'):
+def generarDataset(data,destino,transit_routing_preference=False):
     cantidadFilas = range(data.shape[0])
+    #fewer transfers o less walking
+    if transit_routing_preference:
+        print 'con parametro, menos transferencias mas tiempo'
     consultas = [googDirections(origins = (data.iloc[i].Y,data.iloc[i].X),
-                                destinations = destino,
-                                mode="transit",
-                               transit_routing_preference = transit_routing_preference) for i in cantidadFilas]
+                                    destinations = destino,
+                                    transit_routing_preference = transit_routing_preference,
+                                   mode="transit") for i in cantidadFilas]
     
     data['consulta'] = consultas
     data['fechaCorrida'] = str(datetime.datetime.now())
