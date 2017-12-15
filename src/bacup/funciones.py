@@ -8,17 +8,12 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Point
 
 
-def googDirections(origins, destinations, transit_routing_preference = False, mode="transit", departure_time = 0):
+def googDirections(origins, destinations, transit_routing_preference = False, mode="transit"):
     #docs https://developers.google.com/maps/documentation/directions/intro#DirectionsRequests
     #transit_routing_preference: less_walking o fewer_transfers
     
-    gmaps = googlemaps.Client(key=os.getenv('GOOAPIDIRE'))
-    travel =gmaps.directions(origins,
-                             destinations,
-                             mode,
-                             transit_routing_preference=transit_routing_preference,
-                             alternatives=False,
-                             departure_time = departure_time)
+    gmaps = googlemaps.Client(key=os.getenv('GOOGLEAPIACYA'))
+    travel = gmaps.directions(origins,destinations,mode,transit_routing_preference=transit_routing_preference,alternatives=False)
     
      
     return travel
@@ -69,40 +64,38 @@ def modos(googleDict):
     Esta funcion toma un diccionario de la API de google y 
     devuelve la lista de modos que tomo
     '''
+    pasos = googleDict[0]['legs'][0]['steps']
+    #listaModos = [pasos[i]['travel_mode'] for i in range(len(pasos))]
+    diccio = {}
+    
+    
+    
     try:
-        pasos = googleDict[0]['legs'][0]['steps']
-        #listaModos = [pasos[i]['travel_mode'] for i in range(len(pasos))]
-        diccio = {}
-
-
-
-        try:
-            for i in range(len(pasos)):
-                paso = pasos[i]
-                modo = paso['travel_mode']
-                #diccio.update({i: pasos[i]['travel_mode']})
-                if modo == 'WALKING':
-                    agregar = {'tipo':modo,
-                               'distancia':paso['distance']['value'],
-                               'duracion':paso['duration']['value'],
-                              'vehiculo':modo}
-
-                elif modo == 'TRANSIT':
-
-                    vehiculo = paso['transit_details']['line']['vehicle']
-                    agregar = {'tipo':modo,
-                               'distancia':paso['distance']['value'],
-                               'duracion':paso['duration']['value'],
-                               'vehiculo':vehiculo['name'] + ' - ' + vehiculo['type']}
-                else:
-                    agregar = np.nan
-
-                diccio.update({i:agregar})
-            return diccio
-        except:
-            return np.nan
+        for i in range(len(pasos)):
+            paso = pasos[i]
+            modo = paso['travel_mode']
+            #diccio.update({i: pasos[i]['travel_mode']})
+            if modo == 'WALKING':
+                agregar = {'tipo':modo,
+                           'distancia':paso['distance']['value'],
+                           'duracion':paso['duration']['value'],
+                          'vehiculo':modo}
+                
+            elif modo == 'TRANSIT':
+                
+                vehiculo = paso['transit_details']['line']['vehicle']
+                agregar = {'tipo':modo,
+                           'distancia':paso['distance']['value'],
+                           'duracion':paso['duration']['value'],
+                           'vehiculo':vehiculo['name'] + ' - ' + vehiculo['type']}
+            else:
+                agregar = np.nan
+                
+            diccio.update({i:agregar})
+        return diccio
     except:
         return np.nan
+
     
     
 def trasbordo(googleDict):
@@ -122,19 +115,17 @@ def ingreso(modo,metrica):
     - tiempo de ingreso caminando al sistema
     - distancia de caminata para ingreso al sistema
     '''
-    try:
-        if len(modo) == 1:
-            return 0
-        elif modo[0]['tipo'] == 'WALKING':
-            if metrica == 'duracion':
-                return modo[0]['duracion']
-            elif metrica == 'distancia':
-                return modo[0]['distancia']
-
-        else:
-            return 0
-    except:
-        return np.nan
+    if len(modo) == 1:
+        return 0
+    elif modo[0]['tipo'] == 'WALKING':
+        if metrica == 'duracion':
+            return modo[0]['duracion']
+        elif metrica == 'distancia':
+            return modo[0]['distancia']
+    
+    else:
+        return 0
+    
     
 def egreso(modo,metrica):   
     '''
@@ -143,35 +134,27 @@ def egreso(modo,metrica):
     - tiempo de egreso del sistema caminando 
     - distancia de egreso del sistema caminado 
     '''
-    try:
-        ultimoModo = len(modo) - 1
-
-        if len(modo) == 1:
-            return 0    
-        elif modo[ultimoModo]['tipo'] == 'WALKING':
-            if metrica == 'duracion':
-                return modo[ultimoModo]['duracion']
-            elif metrica == 'distancia':
-                return modo[ultimoModo]['distancia']
-
-        else:
-            return 0
-    except:
-        return np.nan
+    ultimoModo = len(modo) - 1
     
+    if len(modo) == 1:
+        return 0    
+    elif modo[ultimoModo]['tipo'] == 'WALKING':
+        if metrica == 'duracion':
+            return modo[ultimoModo]['duracion']
+        elif metrica == 'distancia':
+            return modo[ultimoModo]['distancia']
+    
+    else:
+        return 0
     
 def descripcionViaje(modo):
     '''
     Esta funcion toma un modo generado por la funcion modos(googleDict)
     y devuelve una descripcion del viaje 
     '''
-    try:
-        respuesta = [modo[i]['tipo'] for i in range(len(modo))]
-    except:
-        respuesta = np.nan
-    return respuesta 
+    return [modo[i]['tipo'] for i in range(len(modo))]
 
-def generarConsulta(data,destino,transit_routing_preference=False):
+def generarDataset(data,destino,transit_routing_preference=False):
     cantidadFilas = range(data.shape[0])
     #fewer transfers o less walking
     consultas = [googDirections(origins = (data.iloc[i].Y,data.iloc[i].X),
@@ -180,11 +163,7 @@ def generarConsulta(data,destino,transit_routing_preference=False):
                                    mode="transit") for i in cantidadFilas]
 
     
-    data['consulta'] = consultas    
-    return data
-
-   
-def extraerDataConsulta(data,destino,transit_routing_preference):
+    data['consulta'] = consultas
     data['fechaCorrida'] = str(datetime.datetime.now())
     data['destino'] = str(destino)
     data['preferenciasConsulta'] = transit_routing_preference
@@ -200,6 +179,8 @@ def extraerDataConsulta(data,destino,transit_routing_preference):
     data['duracionEgreso'] = [egreso(i,'duracion') for i in data.modos]
     data['distanciaEgreso'] = [egreso(i,'distancia') for i in data.modos]
     data['tiempoEnSistema'] = data.tiempoTotal - data.duracionEgreso - data.duracionIngreso
+    
+    
     return data
 
 def mapear(dataset,variable,destino,archivo,titulo):
@@ -241,5 +222,5 @@ def guardarData(dataset,nombre):
     dataset.consulta = dataset.consulta.map(str)
 
     
-    dataset.to_file('resultados/'+str(nombre))
-    dataset.to_csv('resultados/'+str(nombre)+'/'+str(nombre)+'.csv')
+    dataset.to_file('../data/resultados/'+str(nombre))
+    dataset.to_csv('../data/resultados/'+str(nombre)+'/'+str(nombre)+'.csv')
